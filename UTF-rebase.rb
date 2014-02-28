@@ -1,4 +1,5 @@
 #! ruby
+#
 
 require 'nkf'
 
@@ -71,7 +72,6 @@ oldest_sha1 = commits[0]
 
 k "# of commits : #{commits.size}, oldest:#{oldest_sha1} "
 
-=begin
 # 最古のコミットに対してrebaseをかける．
 # かつ，すべてのコミットで修正する様にする．
 #cmd = %Q!GIT_EDITOR='ruby -ibak -e "ARGF.each{|x| puts x.sub(/pick/,%q(edit))}"' git rebase -i #{oldest_sha1}!
@@ -92,32 +92,16 @@ system(cmd)
 
 k 'rebased to oldest.'
 
-=end
-
 
 begin
   k "Create save dir if it does not exist"
   Dir.mkdir("../save") unless File.directory?("../save")
 
-  commits.shift
-  sysetm "git reset #{oldest_sha1}"
-
-  k "reset to oldest"
-  dest = "../save/oldest-#{oldest_sha1}"
-  system "mv * #{dest}/"
-  k "clear"
-  extract_files oldest_sha1
-  k "extracted"
-  system "git add --all"
-  k "commit as new origin commit"
-  system "git commit --amend"
-
   commits.each_with_index do |commit,i|
-    k "Start cherry-picking the commit# #{i}: #{commit}"
+    k "Starting commit# #{i}: #{commit}"
 
-    res = system("git cherry-pick #{commit}")
 
-    # ひとまずファイルその他もろもろをどけてしまう．
+    # まずファイルその他もろもろをどけてしまう．
     store = "../save/#{i}-#{commit}"
 
     k "Create destination: #{store} "
@@ -128,23 +112,31 @@ begin
 
     k "All files moved. (Is it OK?) "
 
+    k "Reset all changes."
+    # 現在の変更点をリセット
+    system("git reset")
+    k "reset."
+
     k "Start file extraction for HEAD"
     #現在のツリーオブジェクトを取得し，ループ
-    extract_files commit
+    extract_files 'HEAD'
 
     k "adding all files "
     # すべてを追加
     system("git add --all")
 
-    if res
     k "Modify Commits"
     #コミットを修正
     system("git commit --amend")
-    else
-      k "continue cherry-picking"
-      system("git cherry-pick --continue")
-    end
+
+    k "Continue rebasing"
+    #リベースを続行
+    system("git rebase --continue")
   end
+rescue
+  $stderr.puts "Rebase failed. Please run following commant to recover it\n  git rebase --abort"
+  raise
 end
 
+k "Is rebase finished?"
 
