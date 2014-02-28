@@ -4,7 +4,7 @@
 require 'nkf'
 
 # ステップ実行かどうか
-if ARGV.empty?
+unless ARGV.empty?
   def k(a)
     #do nothing
   end
